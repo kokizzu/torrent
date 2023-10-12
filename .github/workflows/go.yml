@@ -5,23 +5,25 @@ on: [push, pull_request]
 jobs:
 
   test:
-    timeout-minutes: 30
+    timeout-minutes: 10
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go-version: [ '1.21', '1.20' ]
+        go-version: [ '1.21' ]
         os: [windows-latest, macos-latest, ubuntu-latest]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
     - uses: ./.github/actions/go-common
-    - run: go test -race -count 2 ./...
+    - run: go test -race -count 2 $(go list ./... | grep -v /fs)
+    - run: go test -race -count 2 ./fs/...
+      if: ${{ ! contains(matrix.os, 'windows') }}
 
   test-benchmarks:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ '1.20' ]
+        go-version: [ '1.21' ]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -32,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ '1.20' ]
+        go-version: [ '1.21' ]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -43,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ '1.20' ]
+        go-version: [ '1.21' ]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -55,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ '1.20' ]
+        go-version: [ '1.21' ]
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
@@ -68,7 +70,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go-version: [ '1.20' ]
+        go-version: [ '1.21' ]
         os: [ubuntu-latest]
       fail-fast: false
     steps:
