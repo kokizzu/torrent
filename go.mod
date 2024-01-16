@@ -13,7 +13,7 @@ require (
 	github.com/anacrolix/fuse v0.2.0
 	github.com/anacrolix/generics v0.0.0-20230816105729-c755655aee45
 	github.com/anacrolix/go-libutp v1.3.1
-	github.com/anacrolix/log v0.14.3-0.20230823030427-4b296d71a6b4
+	github.com/anacrolix/log v0.14.6-0.20231202035202-ed7a02cad0b4
 	github.com/anacrolix/missinggo v1.3.0
 	github.com/anacrolix/missinggo/perf v1.0.0
 	github.com/anacrolix/missinggo/v2 v2.7.2-0.20230527121029-a582b4f397b9
@@ -122,4 +122,6 @@ retract (
 	v1.39.0
 	// peer-requesting doesn't scale
 	[v1.34.0, v1.38.1]
+	// Indefinite outgoing requests on storage write errors. https://github.com/anacrolix/torrent/issues/889
+	[v1.29.0, v1.53.2]
 )

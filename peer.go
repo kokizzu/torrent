@@ -465,6 +465,7 @@ func (me *Peer) cancel(r RequestIndex) {
 		panic("request not existing should have been guarded")
 	}
 	if me._cancel(r) {
+		// Record that we expect to get a cancel ack.
 		if !me.requestState.Cancelled.CheckedAdd(r) {
 			panic("request already cancelled")
 		}
@@ -478,9 +479,6 @@ func (me *Peer) cancel(r RequestIndex) {
 // Sets a reason to update requests, and if there wasn't already one, handle it.
 func (cn *Peer) updateRequests(reason string) {
 	if cn.needRequestUpdate != "" {
-		return
-	}
-	if reason != peerUpdateRequestsTimerReason && !cn.isLowOnRequests() {
 		return
 	}
 	cn.needRequestUpdate = reason
