@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
-	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"expvar"
 	"fmt"
+	"github.com/cespare/xxhash"
 	"io"
 	"math"
 	"net"
@@ -43,7 +43,6 @@ import (
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/anacrolix/torrent/mse"
 	pp "github.com/anacrolix/torrent/peer_protocol"
-	utHolepunch "github.com/anacrolix/torrent/peer_protocol/ut-holepunch"
 	request_strategy "github.com/anacrolix/torrent/request-strategy"
 	"github.com/anacrolix/torrent/storage"
 	"github.com/anacrolix/torrent/tracker"
@@ -90,6 +89,8 @@ type Client struct {
 	httpClient            *http.Client
 
 	clientHolepunchAddrSets
+
+	defaultLocalLtepProtocolMap LocalLtepProtocolMap
 }
 
 type ipStr string
@@ -214,6 +215,7 @@ func (cl *Client) init(cfg *ClientConfig) {
 			MaxConnsPerHost: 10,
 		}
 	}
+	cl.defaultLocalLtepProtocolMap = makeBuiltinLtepProtocols(!cfg.DisablePEX)
 }
 
 func NewClient(cfg *ClientConfig) (cl *Client, err error) {
@@ -221,9 +223,8 @@ func NewClient(cfg *ClientConfig) (cl *Client, err error) {
 		cfg = NewDefaultClientConfig()
 		cfg.ListenPort = 0
 	}
-	var client Client
-	client.init(cfg)
-	cl = &client
+	cl = &Client{}
+	cl.init(cfg)
 	go cl.acceptLimitClearer()
 	cl.initLogger()
 	defer func() {
@@ -256,8 +257,19 @@ func NewClient(cfg *ClientConfig) (cl *Client, err error) {
 		}
 	}
 
-	sockets, err := listenAll(cl.listenNetworks(), cl.config.ListenHost, cl.config.ListenPort, cl.firewallCallback, cl.logger)
+	builtinListenNetworks := cl.listenNetworks()
+	sockets, err := listenAll(
+		builtinListenNetworks,
+		cl.config.ListenHost,
+		cl.config.ListenPort,
+		cl.firewallCallback,
+		cl.logger,
+	)
 	if err != nil {
+		return
+	}
+	if len(sockets) == 0 && len(builtinListenNetworks) != 0 {
+		err = fmt.Errorf("no sockets created for networks %v", builtinListenNetworks)
 		return
 	}
 
@@ -1078,6 +1090,10 @@ func (t *Torrent) runHandshookConn(pc *PeerConn) error {
 		return fmt.Errorf("adding connection: %w", err)
 	}
 	defer t.dropConnection(pc)
+	pc.addBuiltinLtepProtocols(!cl.config.DisablePEX)
+	for _, cb := range pc.callbacks.PeerConnAdded {
+		cb(pc)
+	}
 	pc.startMessageWriter()
 	pc.sendInitialMessages()
 	pc.initUpdateRequestsTimer()
@@ -1135,10 +1151,6 @@ func (pc *PeerConn) sendInitialMessages() {
 			ExtendedID: pp.HandshakeExtendedID,
 			ExtendedPayload: func() []byte {
 				msg := pp.ExtendedHandshakeMessage{
-					M: map[pp.ExtensionName]pp.ExtensionNumber{
-						pp.ExtensionNameMetadata:  metadataExtendedId,
-						utHolepunch.ExtensionName: utHolepunchExtendedId,
-					},
 					V:            cl.config.ExtendedHandshakeClientVersion,
 					Reqq:         localClientReqq,
 					YourIp:       pp.CompactIp(pc.remoteIp()),
@@ -1149,9 +1161,7 @@ func (pc *PeerConn) sendInitialMessages() {
 					Ipv4: pp.CompactIp(cl.config.PublicIp4.To4()),
 					Ipv6: cl.config.PublicIp6.To16(),
 				}
-				if !cl.config.DisablePEX {
-					msg.M[pp.ExtensionNamePex] = pexExtendedId
-				}
+				msg.M = pc.LocalLtepProtocolMap.toSupportedExtensionDict()
 				return bencode.MustMarshal(msg)
 			}(),
 		})
@@ -1301,7 +1311,14 @@ func (cl *Client) newTorrentOpt(opts AddTorrentOpts) (t *Torrent) {
 		webSeeds:     make(map[string]*Peer),
 		gotMetainfoC: make(chan struct{}),
 	}
-	t.smartBanCache.Hash = sha1.Sum
+	var salt [8]byte
+	rand.Read(salt[:])
+	t.smartBanCache.Hash = func(b []byte) uint64 {
+		h := xxhash.New()
+		h.Write(salt[:])
+		h.Write(b)
+		return h.Sum64()
+	}
 	t.smartBanCache.Init()
 	t.networkingEnabled.Set()
 	t.logger = cl.logger.WithDefaultLevel(log.Debug)
