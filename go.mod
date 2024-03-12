@@ -13,13 +13,13 @@ require (
 	github.com/anacrolix/fuse v0.2.0
 	github.com/anacrolix/generics v0.0.2-0.20240227122613-f95486179cab
 	github.com/anacrolix/go-libutp v1.3.1
-	github.com/anacrolix/log v0.14.6-0.20231202035202-ed7a02cad0b4
+	github.com/anacrolix/log v0.15.2
 	github.com/anacrolix/missinggo v1.3.0
 	github.com/anacrolix/missinggo/perf v1.0.0
 	github.com/anacrolix/missinggo/v2 v2.7.3
 	github.com/anacrolix/multiless v0.3.0
-	github.com/anacrolix/possum/go v0.0.0-20240222034319-2fe0737d4315
-	github.com/anacrolix/squirrel v0.6.0
+	github.com/anacrolix/possum/go v0.1.1-0.20240309232535-7d660fa365f8
+	github.com/anacrolix/squirrel v0.6.4
 	github.com/anacrolix/sync v0.5.1
 	github.com/anacrolix/tagflag v1.3.0
 	github.com/anacrolix/upnp v0.1.3-0.20220123035249-922794e51c96
